@@ -1,0 +1,16 @@
+{
+	"name": "d-flappybird",
+	"authors": [
+		"karita"
+	],
+	"dependencies": {
+		"derelict-sdl2": "~>3.0.0-beta"
+	},
+    "subConfigurations": {
+        "derelict-sdl2": "derelict-sdl2-static"
+    },
+    "libs": ["sdl2", "SDL2_image"],
+	"description": "A minimal D application.",
+	"copyright": "Copyright © 2018, karita",
+	"license": "BSL-1.0"
+}
