@@ -1,35 +1,44 @@
 module sdlite;
 
-import std.format : format;
-import std.exception : enforce;
-import std.stdio : writeln;
-import std.string : toStringz;
+import std.string : fromStringz;
 import std.traits : isPointer;
 
 import derelict.sdl2.sdl;
 import derelict.sdl2.image;
 
-auto SDL_Enforce(SDL_bool cond, string reason="") {
-    enforce(cond == SDL_TRUE,
-            format!"%s (%d: %s)"(reason, cond, SDL_GetError()));
+@nogc:
+
+auto SDL_Enforce(SDL_bool cond) {
+    assert(cond == SDL_TRUE, SDL_GetError().fromStringz);
 }
 
-auto SDL_Enforce(T)(T ptr, string reason="") if (isPointer!T || is(T == bool)) {
-    return enforce(ptr, format!"%s (%s)"(reason, SDL_GetError()));
+auto SDL_Enforce(T)(T ptr) if (isPointer!T || is(T == bool)) {
+    assert(ptr, SDL_GetError().fromStringz);
+    static if (isPointer!T) {
+        return ptr;
+    }
 }
+
+shared static this() {
+    SDL_Enforce(SDL_Init(SDL_INIT_EVERYTHING) == 0);
+}
+
+shared static ~this() {
+    SDL_Quit();
+}
+
 
 struct Window {
+    @nogc:
+
     SDL_Window* ptr;
 
-    this(string title, int width, int height,
+    this(const(char)* title, int width, int height,
          int x=SDL_WINDOWPOS_CENTERED,
          int y=SDL_WINDOWPOS_CENTERED,
          SDL_WindowFlags flags=SDL_WINDOW_SHOWN
         ) {
-        this.ptr = SDL_Enforce(
-            SDL_CreateWindow(title.toStringz, x, y, width, height, flags),
-            "Window could not be created"
-            );
+        this.ptr = SDL_Enforce(SDL_CreateWindow(title, x, y, width, height, flags));
     }
 
     ~this() {
@@ -42,14 +51,15 @@ struct Window {
 }
 
 struct Renderer {
+    @nogc:
+
     SDL_Renderer* ptr;
 
     this(SDL_Window* window, int index=-1,
          SDL_RendererFlags flags=SDL_RENDERER_ACCELERATED // the renderer uses hardware acceleration
          | SDL_RENDERER_PRESENTVSYNC  // present is synchronized with the refresh rate
         ) {
-        this.ptr = SDL_Enforce(SDL_CreateRenderer(window, index, flags),
-                               "Renderer could not be created");
+        this.ptr = SDL_Enforce(SDL_CreateRenderer(window, index, flags));
     }
 
     ~this() {
@@ -71,12 +81,14 @@ struct Renderer {
         return this;
     }
 
-    auto loadTexture(string filename) {
+    auto loadTexture(const(char)* filename) {
         return Texture(this.ptr, filename);
     }
 }
 
-struct Event {
+struct EventQueue {
+    @nogc:
+
     SDL_Event _event;
     bool _empty = false;
     bool _uninit = true;
@@ -99,12 +111,14 @@ struct Event {
 }
 
 struct Texture {
+    @nogc:
+
     SDL_Texture* ptr;
     SDL_Renderer* rptr;
-    this(SDL_Renderer* r, string filename) {
-        auto rwops = SDL_Enforce(SDL_RWFromFile(filename.toStringz, "rb"), "cannot load a file: " ~ filename);
+    this(SDL_Renderer* r, const(char)* filename) {
+        auto rwops = SDL_Enforce(SDL_RWFromFile(filename, "rb")); // , "cannot load a file: " ~ filename);
         scope(exit) SDL_RWclose(rwops);
-        auto surface = SDL_Enforce(IMG_LoadPNG_RW(rwops), "cannot load a file (only png supported): " ~ filename);
+        auto surface = SDL_Enforce(IMG_LoadPNG_RW(rwops)); // , "cannot load a file (only png supported): " ~ filename);
         scope(exit) SDL_FreeSurface(surface);
         this.rptr = r;
         this.ptr = SDL_Enforce(SDL_CreateTextureFromSurface(r, surface));
@@ -119,4 +133,3 @@ struct Texture {
         SDL_RenderCopyEx(this.rptr, this.ptr, src, dst, angle, center, flip);
     }
 }
-

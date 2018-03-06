@@ -5,13 +5,12 @@ https://postd.cc/writing-a-2d-platform-game-in-nim-with-sdl2/
 
  +/
 
-import std.stdio : writeln;
-import std.exception : enforce;
+// import std.stdio : writeln;
 
-import derelict.sdl2.sdl;
-import derelict.sdl2.image;
+import derelict.sdl2.sdl; // : SDL_SetHint, SDL_HINT_RENDER_SCALE_QUORITY, SDL_Scancode;
+import sdlite : EventQueue, Window, Texture, SDL_Enforce;
 
-import sdlite : Event, Window, Texture;
+@nogc:
 
 enum Input {
     none,
@@ -36,11 +35,14 @@ Input toInput(SDL_Scancode key) {
 }
 
 struct Player {
+    @nogc:
+
     Texture texture;
     SDL_Point pos;
     double[2] vel;
 
     struct Parts {
+        @nogc:
         SDL_Rect src, dst;
         SDL_RendererFlip flip = SDL_FLIP_NONE;
     }
@@ -75,17 +77,20 @@ struct Player {
 }
 
 struct GameState {
+    @nogc:
+
     bool[Input.max+1] inputs;
     double[2] camera;
+
+    bool isRunning() {
+        return !this.inputs[Input.quit];
+    }
 }
 
 
-void main() {
-    enforce(SDL_Init(SDL_INIT_EVERYTHING) == 0,
-            "SDL2 initialization failed");
-    scope(exit) SDL_Quit();
-    enforce(SDL_SetHint(SDL_HINT_RENDER_SCALE_QUALITY, "2") == SDL_TRUE,
-            "Linear texture filtering could not be enabled");
+@nogc void main() {
+    // enable linear texture filtering
+    SDL_Enforce(SDL_SetHint(SDL_HINT_RENDER_SCALE_QUALITY, "2"));
 
     auto window = Window("Our own 2D platformer", 1280, 720);
     auto renderer = window.renderer;
@@ -93,8 +98,8 @@ void main() {
     auto player = Player(renderer.loadTexture("asset/red_bird.png"), SDL_Point(170, 500));
 
     GameState game;
-    while (true) {
-        foreach (event; Event()) {
+    while (game.isRunning) {
+        foreach (event; EventQueue()) {
             // http://sdl2referencejp.osdn.jp/SDL_Event.html
             switch (event.type) {
             case SDL_QUIT:
@@ -110,10 +115,6 @@ void main() {
             }
         }
 
-        if (game.inputs[Input.quit]) {
-            writeln("see you!");
-            break;
-        }
         if (game.inputs[Input.right]) {
             player.pos.x += 1;
         }
